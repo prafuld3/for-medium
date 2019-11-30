@@ -1,0 +1,47 @@
+import pandas as pd
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow,Flow
+from google.auth.transport.requests import Request
+from datetime import date, datetime
+import dateutil
+import os
+import pickle
+
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+
+# The ID and range of a sample spreadsheet.
+SAMPLE_SPREADSHEET_ID_input = '1cvZswLiDo3LfhnA7RcS8vFqacx73RGor-OZ_FtvyLE8'
+SAMPLE_RANGE_NAME = 'A1:AA1000'
+
+def main():
+    global values_input, service
+    creds = None
+    if os.path.exists('token.pickle'):
+        with open('token.pickle', 'rb') as token:
+            creds = pickle.load(token)
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'credentials_pra.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open('token.pickle', 'wb') as token:
+            pickle.dump(creds, token)
+
+    service = build('sheets', 'v4', credentials=creds)
+
+    # Call the Sheets API
+    sheet = service.spreadsheets()
+    result_input = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID_input,
+                                range=SAMPLE_RANGE_NAME).execute()
+    values_input = result_input.get('values', [])
+
+    if not values_input and not values_expansion:
+        print('No data found.')
+
+main()
+
+df=pd.DataFrame(values_input[1:], columns=values_input[0])
